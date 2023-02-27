@@ -8,8 +8,8 @@
 // *                                                                 *
 // *******************************************************************/
 //
-//		cl /c enclogw.cpp
-//		link ftd2xx.lib enclogw.obj
+//		cl /c enccfg.cpp
+//		link ftd2xx.lib enccfg.obj
 
 #include <windows.h>
 
@@ -47,6 +47,8 @@ FILE 		*file;
 char		StrBuf[50];
 
 FT_HANDLE	ft; 
+
+int			Sel,Enc;
 
 
 FT_STATUS write_mpsse(int num, ...) { 
@@ -141,13 +143,6 @@ int		CheckEmpty()
 	return	 Buffer[7] & 1;
 }
 
-void	FlagSet()
-{
-	Buffer[3]= 0xa0;
-	Buffer[4]= FlagData;
-	Buffer[5]= 0;
- 	RW_SPI_DATA(8);
-}
 
 void	PageRead()
 {
@@ -155,6 +150,16 @@ void	PageRead()
 	Buffer[4]= TargetAdr >> 8;
 	Buffer[5]= TargetAdr & 0xff;
  	RW_SPI_DATA(132);
+}
+
+void	FlagSet()
+{
+	Buffer[3]= 0xa2;
+	Buffer[4]= Sel;
+	Buffer[5]= Enc;
+	Buffer[6]= 0;
+	Buffer[7]= 0;
+ 	RW_SPI_DATA(8);
 }
 
 void	IncrementCash()
@@ -165,6 +170,27 @@ void	IncrementCash()
 	TargetAdr	+= 0x80;
 	TargetAdr	&= 0x7ff;
 }
+
+int		CheckModel()
+{
+	Buffer[3]= 0xa3;
+	Buffer[4]= 0;
+	Buffer[5]= 0;
+//	printf("%2X \n",buffer[4]);
+ 	RW_SPI_DATA(15);
+
+//	for (int i=8;i<16;i++){
+//		printf("%02X ",Buffer[i]);
+//	}
+//	printf("\n");
+	
+//	FT_Purge( ft, FT_PURGE_RX | FT_PURGE_TX);
+
+	return	Buffer[10];
+}
+
+
+
 
 int	main(int	argc,char	*argv[])
 { 
@@ -206,81 +232,39 @@ int	main(int	argc,char	*argv[])
 	BlkPage		= 10;
 //	OpnPort		= 0;
 
-//	if ( 1 < argc  )
-//		OpnPort	= atoi(argv[1]);
-	if ( 1 < argc  )
-		BlkPage	= atoi(argv[1]);
+	for (int i = 2 ; i < argc ; i++){
+		char		*p;
+		p	= argv[i];
+		switch (*p++) {
+			case 'S' :	// select
+				Sel		=  atoi(p);
+				break;
+			case 'E' :	// encoder type
+				Enc		= strtol(p, NULL, 16); 
+		}
+	}
+
 
 	time(&nowtime);
 	printf("// Start time -  %s",ctime(&nowtime));
 
  	signal(SIGINT, signal_handler); 
  	if( FT_Open(OpnPort, &ft) != FT_OK ) { 
- 		fprintf(stderr, "Error\n"); 
+ 		fprintf(stderr, "ss Error\n"); 
  		return 1; 
  	} 
  
 	FT_Init();
 	FT_Flash();
 
-	if (CheckEmpty() == 1)
-		printf("Empty %2X -> ",Buffer[8]);
-	else
-		printf("Exist %2X -> ",Buffer[8]);
-	Sleep(10);
+	if (CheckModel() == 0xd0)
+	{
+		printf("Config Support Device\n");
+		FlagSet();
+	};
 
-	printf("STOP -> ");
-	FlagData	= 0;		// all off
-	FlagSet();
-
-	Sleep(10);
-
-	printf("START -> ");
-	FlagData	= 1;
-	FlagSet();
-
-	printf("CASH EN -> ");
-	FlagData	|= 2;
-	FlagSet();
-
-	Sleep(10);
-
-	if (CheckEmpty() == 1)
-		printf("Empty ");
-	else
-		printf("exists ");
-
-	sprintf(StrBuf,"test.bin");
-	file = fopen(StrBuf,"wb");
-
-	for (int j=0;j< BlkPage;j++){
-		int		k;
-		k = 10000;
-		while (CheckEmpty()){
-			k--;
-			if (k==0){
-				printf("\nTime out detect\n");
-				j = BlkPage;
-				break;
-			}
-		}
-
-//	FT_Purge( ft, FT_PURGE_RX | FT_PURGE_TX);
-
-		PageRead();
-		fwrite(&Buffer[7],1,128,file);
-
-		IncrementCash();
-	}
-	
-	fclose(file);
-
-	printf("-> CASH OFF \n");
-	FlagData	= 1;		// still dsp run
-	FlagSet();
 
  	FT_Close(ft); 
- 	
  	
 	time(&nowtime);
 	printf("// END   time -  %s",ctime(&nowtime));
