@@ -159,7 +159,10 @@ void	FlagSet()
 	Buffer[5]= Enc;
 	Buffer[6]= 0;
 	Buffer[7]= 0;
- 	RW_SPI_DATA(8);
+	RW_SPI_DATA(8);
+	
+	printf("IC select %d\n",Sel);
+	printf("Encoder select %02X\n",Enc);
 }
 
 void	IncrementCash()
@@ -179,12 +182,6 @@ int		CheckModel()
 //	printf("%2X \n",buffer[4]);
  	RW_SPI_DATA(15);
 
-//	for (int i=8;i<16;i++){
-//		printf("%02X ",Buffer[i]);
-//	}
-//	printf("\n");
-	
-//	FT_Purge( ft, FT_PURGE_RX | FT_PURGE_TX);
 
 	return	Buffer[10];
 }
@@ -232,15 +229,18 @@ int	main(int	argc,char	*argv[])
 	BlkPage		= 10;
 //	OpnPort		= 0;
 
-	for (int i = 2 ; i < argc ; i++){
+	for (int i = 1 ; i < argc ; i++){
 		char		*p;
 		p	= argv[i];
 		switch (*p++) {
 			case 'S' :	// select
 				Sel		=  atoi(p);
+				//printf("s");
 				break;
 			case 'E' :	// encoder type
 				Enc		= strtol(p, NULL, 16); 
+				//printf("e");
+				break;
 		}
 	}
 
