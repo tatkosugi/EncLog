@@ -25,7 +25,7 @@
 #define FT_BITMODE_ASYNC_BITBANG 	0x01
 #define FT_BITMODE_MPSSE 			0x02
 
-#define		DEVICE_LOCAL_ID			0x1444
+#define		DEVICE_TYPE_ID			0x8
 
 #define		OPE_WRITE			0x10
 #define		OPE_WR_RD			0x31
@@ -161,8 +161,8 @@ void	FlagSet()
 	Buffer[7]= 0;
 	RW_SPI_DATA(8);
 	
-	printf("IC select %d\n",Sel);
-	printf("Encoder select %02X\n",Enc);
+	printf("IC select      : %d\n",Sel);
+	printf("Encoder select : %02X\n",Enc);
 }
 
 void	IncrementCash()
@@ -180,8 +180,29 @@ int		CheckModel()
 	Buffer[4]= 0;
 	Buffer[5]= 0;
 //	printf("%2X \n",buffer[4]);
- 	RW_SPI_DATA(15);
+ 	RW_SPI_DATA(16);
 
+	for (int i=8;i<16;i++)
+		printf("%02X ",Buffer[i]);
+	printf("\n");
+
+	switch (Buffer[11]){
+	case 0x20:
+		printf("CMOD A7 found\n");
+		break;
+	case 0x21:
+		printf("Papilio found\n");
+		break;
+	case 0x22:
+		printf("Papilio Pro found\n");
+		break;
+	case 0x30:
+		printf("DE0 nano found\n");
+		break;
+	default:
+		printf("Unkown device\n");
+		break;
+	}
 
 	return	Buffer[10];
 }
@@ -206,17 +227,17 @@ int	main(int	argc,char	*argv[])
 			ftStatus = FT_GetDeviceInfoList(devInfo,&numDevs);
 			if (ftStatus == FT_OK){
 				for (int i=0; i<(int)numDevs; i++){
-					printf("No.%d:\n",i);
-					printf("  Flags: 0x%x\n",devInfo[i].Flags);
-					printf("  Type: 0x%x\n",devInfo[i].Type);
-					printf("  ID: 0x%x\n",devInfo[i].ID);
-					printf("  LocId: 0x%x\n",devInfo[i].LocId);
-					printf("  SerialNumber: %s\n",devInfo[i].SerialNumber);
+					//printf("No.%d:\n",i);
+					//printf("  Flags: 0x%x\n",devInfo[i].Flags);
+					//printf("  Type: 0x%x\n",devInfo[i].Type);
+					//printf("  ID: 0x%x\n",devInfo[i].ID);
+					//printf("  LocId: 0x%x\n",devInfo[i].LocId);
+					//printf("  SerialNumber: %s\n",devInfo[i].SerialNumber);
 					//printf("  Description: %s\n",devInfo[i].Description);
 					//printf("  Handle: 0x%x",devInfo[i].ftHandle);
-					if (devInfo[i].LocId == DEVICE_LOCAL_ID){
+					if (devInfo[i].Type == DEVICE_TYPE_ID){
 						OpnPort	= i;
-						printf("// LocId: 0x%x selected %d\n",devInfo[i].LocId,i);
+						printf("// LocType: 0x%x selected %d\n",devInfo[i].Type,i);
 					}
 				}
 			}
@@ -234,10 +255,12 @@ int	main(int	argc,char	*argv[])
 		p	= argv[i];
 		switch (*p++) {
 			case 'S' :	// select
+			case 's' :
 				Sel		=  atoi(p);
 				//printf("s");
 				break;
 			case 'E' :	// encoder type
+			case 'e' :
 				Enc		= strtol(p, NULL, 16); 
 				//printf("e");
 				break;
@@ -250,7 +273,7 @@ int	main(int	argc,char	*argv[])
 
  	signal(SIGINT, signal_handler); 
  	if( FT_Open(OpnPort, &ft) != FT_OK ) { 
- 		fprintf(stderr, "ss Error\n"); 
+ 		fprintf(stderr, "Error\n"); 
  		return 1; 
  	} 
  
@@ -261,7 +284,9 @@ int	main(int	argc,char	*argv[])
 	{
 		printf("Config Support Device\n");
 		FlagSet();
-	};
+	}
+	else
+		printf("Config not support\n");
 
 
  	FT_Close(ft); 
